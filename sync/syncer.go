@@ -1,8 +1,6 @@
 package sync
 
 import (
-	"fmt"
-
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
@@ -13,35 +11,33 @@ import (
 	"github.com/weaveworks/flux/release"
 )
 
-func NewSyncer(instancer instance.Instancer, instanceDB instance.DB, logger log.Logger) *Syncer {
+func NewSyncer(instancer instance.Instancer, logger log.Logger) *Syncer {
 	return &Syncer{
-		instancer:  instancer,
-		instanceDB: instanceDB,
-		logger:     logger,
+		instancer: instancer,
+		logger:    logger,
 	}
 }
 
 type Syncer struct {
-	instancer  instance.Instancer
-	instanceDB instance.DB
-	logger     log.Logger
+	instancer instance.Instancer
+	logger    log.Logger
 }
 
 func (s *Syncer) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, error) {
 	params := job.Params.(jobs.SyncJobParams)
 
-	config, err := s.instanceDB.GetConfig(params.InstanceID)
+	inst, err := s.instancer.Get(params.InstanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := inst.GetConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting instance config")
 	}
 
 	if !config.Settings.Watching {
 		return nil, nil
-	}
-
-	inst, err := s.instancer.Get(params.InstanceID)
-	if err != nil {
-		return nil, err
 	}
 
 	inst.Logger = log.NewContext(inst.Logger).With("jobID", string(job.ID))
@@ -74,9 +70,12 @@ func (s *Syncer) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, err
 	// Everything that's in the cluster but not in the repo, delete;
 	// everything that's in the repo, apply. This is an approximation
 	// to figuring out what's changed, and applying that. We're
-	// relying on Kubernetes to decide for each application is it is a
+	// relying on Kubernetes to decide for each resource if it is a
 	// no-op.
+
+	// TODO look at ignore notifications
 	var sync platform.SyncDef
+	report := map[string]string{}
 	for id, res := range clusterResources {
 		if _, ok := repoResources[id]; !ok {
 			sync.Actions = append(sync.Actions, platform.SyncAction{
@@ -84,21 +83,19 @@ func (s *Syncer) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, err
 				Delete:     res.Bytes(),
 			})
 		}
+		report[id] = "delete"
 	}
 	for id, res := range repoResources {
 		sync.Actions = append(sync.Actions, platform.SyncAction{
 			ResourceID: id,
 			Apply:      res.Bytes(),
 		})
+		report[id] = "apply"
 	}
 
-	// TODO log something?
+	inst.Logger.Log("sync", report)
 	// TODO Record event with results?
 	// TODO Notification?
 
 	return nil, inst.Platform.Sync(sync)
-}
-
-func (s *Syncer) Diff(defined *release.ServiceUpdate, running platform.Service) (*Diff, error) {
-	return nil, fmt.Errorf("TODO: implement sync.Syncer.Diff")
 }
