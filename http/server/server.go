@@ -252,6 +252,47 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if mux.Vars(r)["page"] != "" {
+		var page int
+		perPage := 50
+		if _, err := fmt.Sscan(mux.Vars(r)["page"], &page); err != nil {
+			errorResponse(w, r, err)
+			return
+		}
+		if mux.Vars(r)["perPage"] != "" {
+			if _, err := fmt.Sscan(mux.Vars(r)["perPage"], &perPage); err != nil {
+				errorResponse(w, r, err)
+				return
+			}
+		}
+
+		if page < 1 {
+			page = 1
+		}
+		if perPage < 1 {
+			perPage = 1
+		}
+
+		// If we are past the last page
+		if len(h) < ((page - 1) * perPage) {
+			jsonResponse(w, r, []flux.HistoryEntry{})
+			return
+		}
+
+		// move to the page
+		h = h[page:]
+		if len(h) > perPage {
+			h = h[:perPage]
+		}
+	}
+
+	if mux.Vars(r)["simple"] == "1" {
+		// Remove all the individual event data, just return the timestamps and messages
+		for _, entry := range h {
+			entry.Event = nil
+		}
+	}
+
 	jsonResponse(w, r, h)
 }
 

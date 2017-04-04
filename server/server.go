@@ -210,7 +210,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 			Stamp: &events[i].StartedAt,
 			Type:  "v0",
 			Data:  event.String(),
-			Event: event,
+			Event: &events[i],
 		}
 	}
 
