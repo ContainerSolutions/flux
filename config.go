@@ -41,9 +41,10 @@ type Auth struct {
 }
 
 type InstanceConfig struct {
-	Git      GitConfig      `json:"git" yaml:"git"`
-	Slack    NotifierConfig `json:"slack" yaml:"slack"`
-	Registry RegistryConfig `json:"registry" yaml:"registry"`
+	Git       GitConfig      `json:"git" yaml:"git"`
+	Namespace string         `json:"namespace" yaml:"namespace"`
+	Slack     NotifierConfig `json:"slack" yaml:"slack"`
+	Registry  RegistryConfig `json:"registry" yaml:"registry"`
 }
 
 // As a safeguard, we make the default behaviour to hide secrets when

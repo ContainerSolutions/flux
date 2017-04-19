@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/client"
 	"github.com/go-kit/kit/log"
@@ -25,7 +26,7 @@ func NewSwarm(logger log.Logger) (*Swarm, error) {
 	cli, err := client.NewEnvClient()
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	c := &Swarm{
@@ -37,7 +38,6 @@ func NewSwarm(logger log.Logger) (*Swarm, error) {
 }
 
 func (c *Swarm) Apply(defs []platform.ServiceDefinition) error {
-	stack_name := "default_swarm"
 	stderr := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	bin, err := findBinary("docker")
@@ -47,6 +47,7 @@ func (c *Swarm) Apply(defs []platform.ServiceDefinition) error {
 	}
 
 	for _, svc := range defs {
+		namespace := strings.Split(string(svc.ServiceID), "/")[0]
 		tmpfile, err := ioutil.TempFile("", "temp")
 		if err != nil {
 			c.logger.Log(err)
@@ -61,7 +62,7 @@ func (c *Swarm) Apply(defs []platform.ServiceDefinition) error {
 			c.logger.Log(err)
 		}
 
-		cmd := exec.Command(bin, "deploy", "-c", tmpfile.Name(), stack_name)
+		cmd := exec.Command(bin, "deploy", "-c", tmpfile.Name(), namespace)
 		cmd.Stderr = stderr
 		cmd.Stdout = stdout
 		err = cmd.Run()

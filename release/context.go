@@ -10,6 +10,7 @@ import (
 	"github.com/ContainerSolutions/flux"
 	"github.com/ContainerSolutions/flux/instance"
 	"github.com/ContainerSolutions/flux/platform/docker"
+	"github.com/ContainerSolutions/flux/platform/kubernetes"
 )
 
 type ReleaseContext struct {
@@ -163,7 +164,14 @@ func (rc *ReleaseContext) SelectServices(included []flux.ServiceID, locked flux.
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
-	services, err := docker.FindDefinedServices(rc.RepoPath())
+	config, err := rc.Instance.Config.Get()
+	services := map[flux.ServiceID][]string{}
+	if config.Settings.Namespace != "" {
+		services, err = docker.FindDefinedServices(config.Settings.Namespace, rc.RepoPath())
+	} else {
+		services, err = kubernetes.FindDefinedServices(rc.RepoPath())
+	}
+
 	if err != nil {
 		return nil, err
 	}

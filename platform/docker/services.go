@@ -23,7 +23,7 @@ func (c *Swarm) AllServices(namespace string, ignore flux.ServiceIDSet) ([]platf
 	for k, v := range s {
 		if len(v.Spec.Networks) > 0 && len(v.Spec.Networks[0].Aliases) > 0 {
 			ps := platform.Service{
-				ID:       flux.MakeServiceID("default_swarm", v.Spec.Networks[0].Aliases[0]),
+				ID:       flux.MakeServiceID(v.Spec.TaskTemplate.ContainerSpec.Labels["com.docker.stack.namespace"], v.Spec.Networks[0].Aliases[0]),
 				IP:       "?",
 				Metadata: v.Spec.Annotations.Labels,
 				//			Status:     string(v.UpdateStatus.State),
@@ -53,13 +53,12 @@ func (c *Swarm) AllServices(namespace string, ignore flux.ServiceIDSet) ([]platf
 }
 
 func (c *Swarm) SomeServices(ids []flux.ServiceID) (res []platform.Service, err error) {
-	namespace := "default_swarm"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	args := filters.NewArgs()
 	for _, v := range ids {
-		_, n := v.Components()
-		args.Add("name", fmt.Sprintf("%s_%s", namespace, n))
+		namespace, svc := v.Components()
+		args.Add("name", fmt.Sprintf("%s_%s", namespace, svc))
 	}
 	s, err := c.client.ServiceList(ctx, types.ServiceListOptions{args})
 
@@ -85,7 +84,7 @@ func (c *Swarm) SomeServices(ids []flux.ServiceID) (res []platform.Service, err 
 	for _, v := range d {
 		if len(v.Spec.Networks) > 0 && len(v.Spec.Networks[0].Aliases) > 0 {
 			ps := platform.Service{
-				ID:       flux.MakeServiceID(namespace, v.Spec.Networks[0].Aliases[0]),
+				ID:       flux.MakeServiceID(v.Spec.TaskTemplate.ContainerSpec.Labels["com.docker.stack.namespace"], v.Spec.Networks[0].Aliases[0]),
 				IP:       "?",
 				Metadata: v.Spec.Annotations.Labels,
 				//Status:     string(v.UpdateStatus.State),

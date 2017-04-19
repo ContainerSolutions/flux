@@ -20,7 +20,7 @@ type minimalCompose struct {
 // directory given, and returns a map of service IDs (from its
 // specified namespace and name) to the paths of resource definition
 // files.
-func FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
+func FindDefinedServices(namespace string, path string) (map[flux.ServiceID][]string, error) {
 	var files []string
 	filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -52,7 +52,7 @@ func FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
 			return services, fmt.Errorf("Expected one service per yaml found %v in %v", len(def.Services), file)
 		}
 		for k, _ := range def.Services {
-			id := flux.MakeServiceID("default_swarm", k)
+			id := flux.MakeServiceID(namespace, k)
 			services[id] = append(services[id], file)
 		}
 	}
